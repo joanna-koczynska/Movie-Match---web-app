@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "animejs": "^4.2.2",
+    "bootstrap-icons": "^1.13.1",
+    "csv-parser": "^3.2.0",
+    "node-cron": "^4.2.1",
+    "swiper": "^12.0.3"
+  }
+}

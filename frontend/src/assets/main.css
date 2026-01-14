@@ -1,0 +1,135 @@
+
+:root {
+  --color-violet: #5a02fd;
+  --color-dark: #1a1a1a;
+  --color-dark-violet:#441f88;
+
+ 
+}
+
+body {
+/* background: linear-gradient(90deg,#000000 0%, #7226ff 50%, #000000 100%); */
+
+background: linear-gradient(180deg,#2f1166 0%, rgba(23, 2, 2, 1) 45%, rgba(0, 0, 0, 1) 98%);
+
+  color: #e0e0e0; 
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  min-width: 100vw;
+  overflow-x: hidden;
+  
+}
+
+
+.form-box {
+  background-color: var(--color-dark); 
+  border: 1px solid rgba(255, 255, 255, 0.432);
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 2px 2rem 1px #8a8a8a;
+  border-radius: 1rem;
+}
+
+.text-muted {
+  color: #aaaaaa !important;
+}
+
+
+.text-gold {
+  color: #ffc107; 
+}
+
+.btn-primary {
+  background-color: var(--color-violet); 
+  border-color: var(--color-violet);
+
+  border-radius: 1rem;
+  text-align: center;
+  justify-content: center;
+  color: white;
+
+}
+
+.btn-primary:hover {
+  background-color: #6321dd;
+  border-color: #6321dd;
+}
+
+.btn-primary:focus:active {
+  background-color: transparent;
+  border-color: #ffffff;
+}
+
+.submit-btn{
+  color: white;
+    padding-left:1.1rem;
+padding-right: 1.1rem;
+padding-top: 0.5rem;
+padding-bottom: 0.5rem;
+  border-radius: 4rem;
+  text-align: center;
+  justify-content: center;
+  background-color: rgb(68, 68, 68);
+ border-color: var(--color-violet);
+  
+}
+
+.submit-btn:hover{
+  background-color: #6321dd;
+  border-color: #6321dd;
+  
+}
+
+
+.navbar{
+  margin-left: 1rem;
+  margin-right: 1rem;
+  
+  background-color: transparent !important;
+  border-bottom: 2px solid var(--color-dark-violet) !important; 
+    justify-content: space-between;
+}
+
+.navbar-nav{
+
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.nav-link:hover{
+
+color: #ffffff !important;
+}
+
+.navbar-brand{
+    font-family: fantasy;
+  font-size: xx-large;
+}
+
+
+.search-input{
+  background-color: transparent;
+border: transparent;
+
+ color: white;
+}
+.search-input:focus{
+box-shadow: none !important;
+
+    border-radius: 1rem!important;
+    background-color: inherit !important;
+}
+
+.search-box{
+   background-color: color-mix(in srgb, var(--color-dark-violet), black 10%);
+    border-radius: 1rem;
+    color: white;
+}
+
+.search-box:hover{
+    background-color: color-mix(in srgb, var(--color-dark-violet), rgb(255, 255, 255) 10%);
+
+}
+
+.nav-item:hover{
+  color: #441f88 !important;
+}

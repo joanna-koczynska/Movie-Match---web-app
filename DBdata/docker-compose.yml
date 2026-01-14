@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # --- BAZA DANYCH (PostgreSQL) ---
+  db:
+    image: postgres:15
+    container_name: movie-match-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: haslo
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      # 1. Montujemy skrypt SQL. Docker wykona go automatycznie TYLKO przy pierwszym uruchomieniu czystej bazy.
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      
+      # 2. Montujemy pliki CSV bezpośrednio do głównego katalogu kontenera (/).
+      # Jest to konieczne, bo w SQL masz: COPY ... FROM '/movies.csv'
+      - ./movies.csv:/movies.csv
+      - ./ratings.csv:/ratings.csv
+      - ./links.csv:/links.csv
+      - ./tags.csv:/tags.csv
+      
+      # 3. Trwałość danych. Dzięki temu dane przeżyją restart komputera.
+      # (Ale usunie je komenda 'docker-compose down -v')
+      - postgres_data:/var/lib/postgresql/data
+
+  
+volumes:
+  postgres_data:
