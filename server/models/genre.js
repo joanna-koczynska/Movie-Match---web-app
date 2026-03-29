@@ -1,5 +1,5 @@
 const { DataTypes, QueryTypes } = require('sequelize');
-const sequelize = require('../config/database'); 
+const sequelize = require('../config/postgres_db');
 
 
 const Genre = sequelize.define('Genre', {
