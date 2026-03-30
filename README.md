@@ -9,7 +9,9 @@ Features
 Tech Stack:
 - Frontend: Vue.js (Progressive Framework) + Bootstrap (UI components and styling).
 - Backend: Node.js (Runtime environment) + Express.js.
-- Database: PostgreSQL – the relational database handling core business logic and user data.
+- Database:
+  - PostgreSQL – the relational database handling core business logic and user data.
+  - Neo4j - graph database
 - Containerization: Docker Desktop – the entire database environment is fully containerized to ensure test reproducibility.
 
 Data Source:
