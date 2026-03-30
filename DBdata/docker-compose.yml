@@ -28,5 +28,24 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   
+# --- BAZA DANYCH (Neo4j) ---
+  neo4j:
+    image: neo4j:5
+    container_name: mm-neo4j-db
+    restart: always
+    environment:
+      NEO4J_AUTH: neo4j/Neo4j.haslo
+    ports:
+      - "7474:7474" # Interfejs graficzny przeglądarki Neo4j
+      - "7687:7687" # Port protokołu Bolt (dla Node.js)
+    volumes:
+   
+      - ./movies.csv:/var/lib/neo4j/import/movies.csv
+      - ./ratings.csv:/var/lib/neo4j/import/ratings.csv
+      - ./links.csv:/var/lib/neo4j/import/links.csv
+      - ./tags.csv:/var/lib/neo4j/import/tags.csv
+      - neo4j_data:/data
+
 volumes:
   postgres_data:
+  neo4j_data:

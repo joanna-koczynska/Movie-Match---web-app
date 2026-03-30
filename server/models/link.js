@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../config/postgres_db');
 const Movie = require('./movie');
 
 const Link = sequelize.define('Link', {
