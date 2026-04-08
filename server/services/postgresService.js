@@ -1,4 +1,4 @@
-const { Movie, Genre, Tag, Watched, User, ToWatch, sequelize } = require('../models/models');
+const { Movie, Genre, Tag, Watched, User, ToWatch, Link,  sequelize } = require('../models/models');
 const { QueryTypes, Op } = require('sequelize'); 
 
 // --- UŻYTKOWNICY (Logowanie i Rejestracja) ---
@@ -189,10 +189,40 @@ async function removeToWatch(userId, movieId) {
     return await ToWatch.destroy({ where: { userId, movieId } });
 }
 
+async function getAllMoviesWithLinks() {
+    const movies = await Movie.findAll({
+        include: [{ model: Link, attributes: ['tmdbId'] }]
+    });
+    // Zwracamy czystą, zunifikowaną tablicę
+    return movies.map(m => ({
+        id: m.id,
+        title: m.title,
+        tmdbId: m.Link ? m.Link.tmdbId : null
+    })).filter(m => m.tmdbId !== null);
+}
+
+async function updateMovieDetails(id, details) {
+    const movie = await Movie.findByPk(id);
+    if (!movie) return;
+
+    await movie.update({
+        poster_path: details.poster_path,
+        overview: details.overview,
+        release_year: details.release_year
+    });
+
+    if (details.genres && details.genres.length > 0) {
+        for (const genreName of details.genres) {
+            const [genre] = await Genre.findOrCreate({ where: { name: genreName } });
+            await movie.addGenre(genre);
+        }
+    }
+}
 
 module.exports = {
     getTopMovies, getMovieById, getMovies, getRecommendations,
     registerUser, loginUser, getBestGenre, getWeeklyStats,
     rateMovie, getWatchedStatus, getUserWatched, removeWatched,
-    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch
+    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch, updateMovieDetails, getAllMoviesWithLinks
+
 };

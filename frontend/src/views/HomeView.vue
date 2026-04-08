@@ -232,8 +232,8 @@ async fetchBestGenre() {
         if (response.ok) {
           const data = await response.json();
           // Przypisujemy dane zgodnie ze strukturą z app.js (nazwa, filmy)
-          this.bestGenreName = data.nazwa;
-          this.bestGenreMovies = data.filmy;
+          this.bestGenreName = data.name;
+          this.bestGenreMovies = data.movies;
         }
       } catch (error) {
         console.error("Błąd pobierania gatunku:", error);

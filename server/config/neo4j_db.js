@@ -9,7 +9,8 @@ const PASSWORD = 'Neo4j.haslo'; // Zgodnie z NEO4J_AUTH w Twoim docker-compose.y
 // Tworzymy główny sterownik (driver), który będzie zarządzał pulą połączeń
 const driver = neo4j.driver(
     URI, 
-    neo4j.auth.basic(USER, PASSWORD)
+    neo4j.auth.basic(USER, PASSWORD),
+    { disableLosslessIntegers: true }
 );
 
 // --- TEST POŁĄCZENIA ---
