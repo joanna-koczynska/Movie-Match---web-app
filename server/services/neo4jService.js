@@ -31,7 +31,7 @@ async function getMovieById(id) {
         const record = result.records[0];
         const movie = record.get('m').properties;
         
-        movie.Genres = record.get('genres').map(name => ({ name: name }));
+        movie.Genres = record.get('genres').map(name => ({ id: name, name: name }));
         return movie;
     } finally {
         await session.close();
@@ -62,7 +62,7 @@ async function getMovies(page = 1, genreName = null, search = null) {
 
         // 1. Zliczamy wszystkie pasujące filmy (do paginacji)
         const countResult = await session.run(`${matchClause} RETURN count(m) AS total`, params);
-        const totalItems = countResult.records[0].get('total').toNumber();
+        const totalItems = countResult.records[0].get('total');
 
         // 2. Pobieramy właściwą stronę wyników
         const result = await session.run(
@@ -171,7 +171,7 @@ async function getWeeklyStats() {
     return { top10, genreTop };
 }
 
-// --- SYSTEM OCEN (Watched) ---
+
 async function rateMovie(userId, movieId, rating) {
     const session = driver.session();
     try {
@@ -220,18 +220,18 @@ async function removeWatched(userId, movieId) {
     } finally { await session.close(); }
 }
 
-// --- LISTA DO OBEJRZENIA (ToWatch) ---
 async function toggleToWatch(userId, movieId) {
     const session = driver.session();
     try {
         const check = await session.run(`MATCH (u:User {id: toInteger($userId)})-[r:TO_WATCH]->(m:Movie {id: toInteger($movieId)}) RETURN r`, { userId: parseInt(userId), movieId: parseInt(movieId) });
-        if (check.records.length > 0) {
-            await session.run(`MATCH (u:User {id: toInteger($userId)})-[r:TO_WATCH]->(m:Movie {id: toInteger($movieId)}) DELETE r`, { userId: parseInt(userId), movieId: parseInt(movieId) });
-            return { message: "Usunięto z listy" };
-        } else {
-            await session.run(`MATCH (u:User {id: toInteger($userId)}), (m:Movie {id: toInteger($movieId)}) MERGE (u)-[:TO_WATCH]->(m)`, { userId: parseInt(userId), movieId: parseInt(movieId) });
-            return { message: "Dodano do listy" };
-        }
+        // Odszukaj ten fragment w neo4jService.js i podmień te dwa returny:
+if (check.records.length > 0) {
+    await session.run(`MATCH (u:User {id: toInteger($userId)})-[r:TO_WATCH]->(m:Movie {id: toInteger($movieId)}) DELETE r`, { userId: parseInt(userId), movieId: parseInt(movieId) });
+    return { message: "Usunięto z listy", added: false }; // <- DODANO added: false
+} else {
+    await session.run(`MATCH (u:User {id: toInteger($userId)}), (m:Movie {id: toInteger($movieId)}) MERGE (u)-[:TO_WATCH]->(m)`, { userId: parseInt(userId), movieId: parseInt(movieId) });
+    return { message: "Dodano do listy", added: true }; // <- DODANO added: true
+}
     } finally { await session.close(); }
 }
 
@@ -259,9 +259,48 @@ async function removeToWatch(userId, movieId) {
     } finally { await session.close(); }
 }
 
+async function getAllMoviesWithLinks() {
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (m:Movie) WHERE m.tmdbId IS NOT NULL 
+             RETURN m.id AS id, m.title AS title, m.tmdbId AS tmdbId`
+        );
+        return result.records.map(r => ({
+            id: r.get('id').toNumber(),
+            title: r.get('title'),
+            tmdbId: r.get('tmdbId')
+        }));
+    } finally { await session.close(); }
+}
+
+async function updateMovieDetails(id, details) {
+    const session = driver.session();
+    try {
+        // Zapisujemy detale i używamy pętli FOREACH do połączenia z nowymi gatunkami
+        await session.run(
+            `MATCH (m:Movie {id: toInteger($id)})
+             SET m.poster_path = $poster_path, 
+                 m.overview = $overview, 
+                 m.release_year = toInteger($release_year)
+             FOREACH (genreName IN $genres |
+                 MERGE (g:Genre {name: genreName})
+                 MERGE (m)-[:HAS_GENRE]->(g)
+             )`,
+            {
+                id: parseInt(id),
+                poster_path: details.poster_path,
+                overview: details.overview,
+                release_year: details.release_year,
+                genres: details.genres || []
+            }
+        );
+    } finally { await session.close(); }
+}
+
 module.exports = {
     getTopMovies, getMovieById, getMovies, getRecommendations,
     registerUser, loginUser, getBestGenre, getWeeklyStats,
     rateMovie, getWatchedStatus, getUserWatched, removeWatched,
-    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch
+    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch,updateMovieDetails, getAllMoviesWithLinks
 };
