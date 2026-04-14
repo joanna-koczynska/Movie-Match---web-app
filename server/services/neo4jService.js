@@ -91,11 +91,11 @@ async function getRecommendations(userId) {
         // 2. Zobacz, co ci użytkownicy lubią jeszcze (>=4).
         // 3. Pomiń to, co my już oceniliśmy (żeby nie polecać obejrzanych).
         const result = await session.run(
-            `MATCH (u:User {id: toInteger($userId)})-[r1:RATED]->(m:Movie)<-[r2:RATED]-(other:User)
+            `MATCH (u:User {id: toInteger($userId)})-[r1:WATCHED]->(m:Movie)<-[r2:WATCHED]-(other:User)
              WHERE r1.rating >= 4 AND r2.rating >= 4
-             MATCH (other)-[r3:RATED]->(rec:Movie)
+             MATCH (other)-[r3:WATCHED]->(rec:Movie)
              WHERE r3.rating >= 4 
-               AND NOT (u)-[:RATED]->(rec) 
+               AND NOT (u)-[:WATCHED]->(rec) 
                AND rec.poster_path IS NOT NULL
              RETURN rec, COUNT(*) AS score
              ORDER BY score DESC
@@ -141,13 +141,17 @@ async function getBestGenre() {
     const session = driver.session();
     try {
         const result = await session.run(
-            `MATCH (m:Movie)<-[r:RATED]-(u:User)
+            `MATCH (m:Movie)<-[r:WATCHED]-(u:User)
              MATCH (m)-[:HAS_GENRE]->(g:Genre)
              RETURN g.name AS name, avg(r.rating) AS avg_rating
              ORDER BY avg_rating DESC LIMIT 1`
         );
         if (result.records.length === 0) return null;
-        return { name: result.records[0].get('name'), avg_rating: result.records[0].get('avg_rating').toFixed(2) };
+        
+        return { 
+            name: result.records[0].get('name'), 
+            avg_rating: Number(result.records[0].get('avg_rating')).toFixed(2) 
+        };
     } finally { await session.close(); }
 }
 
@@ -177,7 +181,7 @@ async function rateMovie(userId, movieId, rating) {
     try {
         const result = await session.run(
             `MATCH (u:User {id: toInteger($userId)}), (m:Movie {id: toInteger($movieId)})
-             MERGE (u)-[r:RATED]->(m)
+             MERGE (u)-[r:WATCHED]->(m)
              SET r.rating = toFloat($rating), r.timestamp = timestamp()
              RETURN r.rating AS rating`,
             { userId: parseInt(userId), movieId: parseInt(movieId), rating: parseFloat(rating) }
@@ -190,10 +194,10 @@ async function getWatchedStatus(userId, movieId) {
     const session = driver.session();
     try {
         const result = await session.run(
-            `MATCH (u:User {id: toInteger($userId)})-[r:RATED]->(m:Movie {id: toInteger($movieId)}) RETURN r.rating AS rating`,
+            `MATCH (u:User {id: toInteger($userId)})-[r:WATCHED]->(m:Movie {id: toInteger($movieId)}) RETURN r.rating AS rating`,
             { userId: parseInt(userId), movieId: parseInt(movieId) }
         );
-        return { rated: result.records.length > 0, rating: result.records.length > 0 ? result.records[0].get('rating') : 0 };
+        return { WATCHED: result.records.length > 0, rating: result.records.length > 0 ? result.records[0].get('rating') : 0 };
     } finally { await session.close(); }
 }
 
@@ -201,7 +205,7 @@ async function getUserWatched(userId) {
     const session = driver.session();
     try {
         const result = await session.run(
-            `MATCH (u:User {id: toInteger($userId)})-[r:RATED]->(m:Movie)
+            `MATCH (u:User {id: toInteger($userId)})-[r:WATCHED]->(m:Movie)
              RETURN m, r.rating AS rating ORDER BY r.timestamp DESC`,
             { userId: parseInt(userId) }
         );
@@ -215,7 +219,7 @@ async function getUserWatched(userId) {
 async function removeWatched(userId, movieId) {
     const session = driver.session();
     try {
-        await session.run(`MATCH (u:User {id: toInteger($userId)})-[r:RATED]->(m:Movie {id: toInteger($movieId)}) DELETE r`, { userId: parseInt(userId), movieId: parseInt(movieId) });
+        await session.run(`MATCH (u:User {id: toInteger($userId)})-[r:WATCHED]->(m:Movie {id: toInteger($movieId)}) DELETE r`, { userId: parseInt(userId), movieId: parseInt(movieId) });
         return true;
     } finally { await session.close(); }
 }
@@ -262,16 +266,31 @@ async function removeToWatch(userId, movieId) {
 async function getAllMoviesWithLinks() {
     const session = driver.session();
     try {
+        // Pobieramy filmy, które mają tmdbId
         const result = await session.run(
-            `MATCH (m:Movie) WHERE m.tmdbId IS NOT NULL 
-             RETURN m.id AS id, m.title AS title, m.tmdbId AS tmdbId`
+            'MATCH (m:Movie) WHERE m.tmdbId IS NOT NULL RETURN m.id AS id, m.title AS title, m.tmdbId AS tmdbId'
         );
-        return result.records.map(r => ({
-            id: r.get('id').toNumber(),
-            title: r.get('title'),
-            tmdbId: r.get('tmdbId')
-        }));
-    } finally { await session.close(); }
+        
+        return result.records.map(r => {
+            const rawId = r.get('id');
+            const rawTmdbId = r.get('tmdbId');
+
+            // Zabezpieczenie: Jeśli to specjalny obiekt Neo4j, użyj toNumber(), jeśli nie, użyj zwykłego Number()
+            const safeId = typeof rawId.toNumber === 'function' ? rawId.toNumber() : Number(rawId);
+            const safeTmdbId = typeof rawTmdbId.toNumber === 'function' ? rawTmdbId.toNumber() : Number(rawTmdbId);
+
+            return {
+                id: safeId,
+                title: r.get('title'),
+                tmdbId: safeTmdbId
+            };
+        });
+    } catch (error) {
+        console.error("Błąd podczas pobierania filmów z linkami:", error);
+        throw error;
+    } finally {
+        await session.close();
+    }
 }
 
 async function updateMovieDetails(id, details) {
