@@ -7,6 +7,8 @@ import RegisterView from '@/views/RegisterView.vue'
 import ToWatch from '@/views/ToWatch.vue'
 import Watched from '@/views/Watched.vue'
 import MoviePage from '@/components/MoviePage.vue'
+import UserProfile from '../components/UserProfile.vue';
+import UsersSearch from '@/components/UsersSearch.vue'
 
 
 const router = createRouter({
@@ -52,7 +54,21 @@ const router = createRouter({
       name: 'register',
       component: RegisterView
     },
-   
+   {
+    path: '/profile',
+    name: 'MyProfile',
+    component: UserProfile
+  },
+  {
+    path: '/users/:username',
+    name: 'UserProfile',
+    component: UserProfile
+  },
+  {
+      path: '/users',
+      name: 'UsersSearch',
+      component: UsersSearch
+    },
   ]
 })
 

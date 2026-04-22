@@ -1,6 +1,6 @@
 // === WYBÓR  BAZY DANYCH ===
-//const ACTIVE_DB = 'postgres'; 
-const ACTIVE_DB = 'neo4j'; 
+const ACTIVE_DB = 'postgres'; 
+//const ACTIVE_DB = 'neo4j'; 
 
 const express = require('express');
 const cors = require('cors');
@@ -72,7 +72,40 @@ app.post('/login', async (req, res) => {
     } catch (error) { res.status(401).json({ message: error.message }); }
 });
 
+// Endpoint: Szukaj użytkownika
+app.get('/users/search', async (req, res) => {
+    try {
+        const query = req.query.q;
+        const users = await db.searchUsers(query);
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd wyszukiwania użytkowników" });
+    }
+});
 
+// Endpoint: Sprawdź czy obserwuję
+app.get('/users/follow-status', async (req, res) => {
+    try {
+        const { followerId, followedId } = req.query;
+        const result = await db.checkFollowStatus(followerId, followedId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd sprawdzania statusu" });
+    }
+});
+
+// Endpoint: Profil użytkownika po nazwie
+app.get('/users/:username', async (req, res) => {
+    try {
+        const user = await db.getUserProfile(req.params.username);
+        if (!user) return res.status(404).json({ error: "Nie znaleziono użytkownika" });
+        res.json(user);
+    } catch (error) {
+        // DODAJEMY CONSOLE.ERROR, żeby wiedzieć co się sypie!
+        console.error("❌ BŁĄD POBIERANIA PROFILU (backend):", error);
+        res.status(500).json({ error: "Błąd pobierania profilu" });
+    }
+});
 
 // ENDPOINT: Najlepszy gatunek
 app.get('/genres/best', async (req, res) => {
@@ -81,6 +114,20 @@ app.get('/genres/best', async (req, res) => {
 });
 
 
+
+// Endpoint: Przełącz Follow/Unfollow
+
+app.post('/users/toggle-follow', async (req, res) => {
+    try {
+        const { followerId, followedId } = req.body;
+        console.log(`[DEBUG] Próba follow. Kto: ${followerId} | Kogo: ${followedId}`);
+        const result = await db.toggleFollow(followerId, followedId);
+        res.json(result);
+    } catch (error) {
+        console.error("❌ BŁĄD PRZY FOLLOW:", error); // Teraz backend nam wszystko wyśpiewa!
+        res.status(500).json({ error: "Błąd zmiany statusu obserwowania" });
+    }
+});
 // --- ENDPOINT: TOP MOVIES ---
 app.get('/movies/top', async (req, res) => {
     try {
@@ -148,18 +195,31 @@ app.get('/users/:userId/watched', async (req, res) => {
 
 
 // --- ENDPOINT: REKOMENDACJE  ---
+// --- ENDPOINT 1: STANDARDOWE REKOMENDACJE (Gatunki i Tagi - Twoja oryginalna funkcja) ---
 app.get('/users/:userId/recommendations', async (req, res) => {
     try {
         const userId = req.params.userId;
+        // Wywołujemy starą, dobrą funkcję opartą na ocenach (5 gwiazdek)
         const recommendations = await db.getRecommendations(userId);
-        
         res.json(recommendations);
     } catch (error) {
-        console.error("Błąd rekomendacji:", error);
+        console.error("Błąd standardowych rekomendacji:", error);
         res.status(500).json({ message: "Błąd serwera", error: error.message });
     }
 });
 
+// --- ENDPOINT 2: SOCIAL REKOMENDACJE (Polecane od obserwowanych użytkowników) ---
+app.get('/users/:userId/social-recommendations', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        // Wywołujemy nową funkcję społecznościową
+        const socialRecommendations = await db.getSocialRecommendations(userId);
+        res.json(socialRecommendations);
+    } catch (error) {
+        console.error("Błąd social rekomendacji:", error);
+        res.status(500).json({ message: "Błąd serwera", error: error.message });
+    }
+});
 
 // --- ENDPOINT: TOGGLE WATCH LIST (Dodaj/Usuń) ---
 app.post('/towatch', async (req, res) => {
@@ -204,8 +264,6 @@ async function startServer() {
             const { sequelize } = require('./models/models');
             await sequelize.authenticate();
             console.log('🐘 Baza danych (PostgreSQL) podłączona.');
-            // Możesz włączyć synchronizację, jeśli potrzebujesz
-            // await sequelize.sync({ force: false, alter: false }); 
         } else if (ACTIVE_DB === 'neo4j') {
             const driver = require('./config/neo4j_db');
             await driver.getServerInfo();
@@ -219,7 +277,7 @@ async function startServer() {
     } catch (error) {
         console.error('Błąd startu:', error);
     }
-};
+}
 
 
 startServer();

@@ -1,4 +1,4 @@
-const { Movie, Genre, Tag, Watched, User, ToWatch, Link,  sequelize } = require('../models/models');
+const { Movie, Genre, Tag, Watched, User, ToWatch, Link, Follower,  sequelize } = require('../models/models');
 const { QueryTypes, Op } = require('sequelize'); 
 
 // --- UŻYTKOWNICY (Logowanie i Rejestracja) ---
@@ -8,6 +8,46 @@ async function registerUser(username, email, password) {
 
 async function loginUser(email, password) {
     return await User.authenticate(email, password);
+}
+
+// Wyszukiwanie użytkowników po nazwie
+async function searchUsers(searchQuery) {
+    return await User.findAll({
+        where: {
+            username: { [Op.iLike]: `%${searchQuery}%` }
+        },
+        attributes: ['id', 'username', 'name'],
+        limit: 10
+    });
+}
+
+// Pobieranie profilu konkretnego użytkownika
+async function getUserProfile(username) {
+    const user = await User.findOne({
+        where: { username: username }, 
+        attributes: ['id', 'username', 'name']
+    });
+
+    if (!user) return null;
+// W pliku postgresService.js zmień te dwie linijki:
+
+    const followersData = await sequelize.query(
+        `SELECT COUNT(*) AS count FROM followers WHERE followed_id = :userId`, 
+        { replacements: { userId: user.id }, type: QueryTypes.SELECT }
+    );
+    const followingData = await sequelize.query(
+        `SELECT COUNT(*) AS count FROM followers WHERE follower_id = :userId`, 
+        { replacements: { userId: user.id }, type: QueryTypes.SELECT }
+    );
+
+    const rawFollowers = followersData[0]?.count || 0;
+    const rawFollowing = followingData[0]?.count || 0;
+
+    return { 
+        ...user.toJSON(), 
+        followersCount: parseInt(rawFollowers, 10) || 0, 
+        followingCount: parseInt(rawFollowing, 10) || 0 
+    };
 }
 
 // --- ZADANIA CRON I STATYSTYKI ---
@@ -193,12 +233,20 @@ async function getAllMoviesWithLinks() {
     const movies = await Movie.findAll({
         include: [{ model: Link, attributes: ['tmdbId'] }]
     });
-    // Zwracamy czystą, zunifikowaną tablicę
-    return movies.map(m => ({
-        id: m.id,
-        title: m.title,
-        tmdbId: m.Link ? m.Link.tmdbId : null
-    })).filter(m => m.tmdbId !== null);
+
+    return movies.map(m => {
+        // Zmieniamy obiekt Sequelize na czysty, prosty JSON
+        const plain = m.get({ plain: true });
+        
+        // Zabezpieczenie: bierzemy Link (z dużej) lub link (z małej litery)
+        const linkData = plain.Link || plain.link;
+        
+        return {
+            id: plain.id,
+            title: plain.title,
+            tmdbId: linkData ? linkData.tmdbId : null
+        };
+    }).filter(m => m.tmdbId !== null);
 }
 
 async function updateMovieDetails(id, details) {
@@ -219,10 +267,74 @@ async function updateMovieDetails(id, details) {
     }
 }
 
+async function followUser(followerId, followedId) {
+    const existingEntry = await Follower.findOne({ where: { followerId, followedId } });
+    if (!existingEntry) {
+        await Follower.create({ followerId, followedId });
+        return { message: "Rozpoczęto obserwowanie!" };
+    }
+    return { message: "Już obserwujesz." };
+}
+
+// 2. Rekomendacje od obserwowanych
+async function getSocialRecommendations(userId) {
+    // Używamy tu sequelize.query, ponieważ zapytanie przez ORM byłoby mało wydajne
+    const query = `
+        SELECT DISTINCT m.id, m.title, m.poster_path
+        FROM movie m
+        JOIN watched w ON m.id = w.id_movie
+        JOIN followers f ON w.id_user = f.followed_id
+        WHERE f.follower_id = :userId
+          AND w.rating >= 4
+          AND m.poster_path IS NOT NULL
+          AND m.id NOT IN (
+              SELECT id_movie FROM watched WHERE id_user = :userId
+          )
+        LIMIT 10;
+    `;
+    
+    const recommendations = await sequelize.query(query, {
+        replacements: { userId },
+        type: QueryTypes.SELECT
+    });
+
+    return recommendations;
+}
+
+// Sprawdzanie, czy użytkownik A obserwuje użytkownika B
+async function checkFollowStatus(followerId, followedId) {
+    const existing = await Follower.findOne({ where: { followerId, followedId } });
+    return { isFollowing: !!existing }; 
+}
+
+// Przełączanie statusu (Follow / Unfollow)
+async function toggleFollow(followerId, followedId) {
+    const existing = await sequelize.query(
+        `SELECT 1 FROM followers WHERE follower_id = :followerId AND followed_id = :followedId`,
+        { replacements: { followerId, followedId }, type: QueryTypes.SELECT }
+    );
+    
+    if (existing.length > 0) {
+        await sequelize.query(
+            `DELETE FROM followers WHERE follower_id = :followerId AND followed_id = :followedId`,
+            { replacements: { followerId, followedId } }
+        );
+        return { isFollowing: false };
+    } else {
+        await sequelize.query(
+            `INSERT INTO followers (follower_id, followed_id) VALUES (:followerId, :followedId)`,
+            { replacements: { followerId, followedId } }
+        );
+        return { isFollowing: true };
+    }
+}
+
+
+
 module.exports = {
     getTopMovies, getMovieById, getMovies, getRecommendations,
     registerUser, loginUser, getBestGenre, getWeeklyStats,
     rateMovie, getWatchedStatus, getUserWatched, removeWatched,
-    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch, updateMovieDetails, getAllMoviesWithLinks
-
+    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch, updateMovieDetails, 
+    getAllMoviesWithLinks, getSocialRecommendations, followUser, getUserProfile, searchUsers, checkFollowStatus, toggleFollow,
 };

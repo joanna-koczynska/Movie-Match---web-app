@@ -7,6 +7,7 @@ const Genre = require('./genre');
 const Watched = require('./watched');
 const ToWatch = require('./toWatch');
 const Tag = require('./tag');
+const Follower = require('./follower');
 
 // Relacje User - Movie (poprzez Rating)
 User.hasMany(Rating, { foreignKey: 'userId' });
@@ -53,6 +54,10 @@ Tag.belongsTo(User, { foreignKey: 'userId' });
 Movie.hasMany(Tag, { foreignKey: 'movieId' });
 Tag.belongsTo(Movie, { foreignKey: 'movieId' });
 
+// Relacje Społecznościowe (User obserwuje Usera)
+User.belongsToMany(User, { as: 'Following', through: Follower, foreignKey: 'followerId', otherKey: 'followedId' });
+User.belongsToMany(User, { as: 'Followers', through: Follower, foreignKey: 'followedId', otherKey: 'followerId' });
+
 module.exports = {
     sequelize,
     User,
@@ -62,5 +67,6 @@ module.exports = {
     Genre,
     Watched,
     ToWatch,
-    Tag
+    Tag,
+    Follower
 };

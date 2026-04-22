@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS movie CASCADE;
 DROP TABLE IF EXISTS links CASCADE;
 DROP TABLE IF EXISTS tags CASCADE;
+DROP TABLE IF EXISTS followers CASCADE;
 
 
 CREATE TABLE stg_movies (
@@ -107,16 +108,18 @@ CREATE TABLE LINKS (
     tmdbId INT
 );
 
+CREATE TABLE followers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    follower_id UUID REFERENCES USERS(id) ON DELETE CASCADE,
+    followed_id UUID REFERENCES USERS(id) ON DELETE CASCADE,
+    UNIQUE(follower_id, followed_id)
+);
 
+\copy stg_movies FROM '/data/movies.csv' DELIMITER ',' CSV HEADER
+\copy stg_ratings FROM '/data/ratings.csv' DELIMITER ',' CSV HEADER
+\copy stg_links FROM '/data/links.csv' DELIMITER ',' CSV HEADER
+\copy stg_tags FROM '/data/tags.csv' DELIMITER ',' CSV HEADER
 
-
--- 4. Ładowanie danych do stagingu (bez zmian)
-COPY stg_movies FROM '/movies.csv' DELIMITER ',' CSV HEADER;
-COPY stg_ratings FROM '/ratings.csv' DELIMITER ',' CSV HEADER;
-COPY stg_links FROM '/links.csv' DELIMITER ',' CSV HEADER;
-COPY stg_tags FROM '/tags.csv' DELIMITER ',' CSV HEADER;
-
--- 5. Migracja danych z mapowaniem ID -> UUID
 
 -- Filmy:
 INSERT INTO MOVIE (id, title)

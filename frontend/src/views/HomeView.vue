@@ -104,6 +104,56 @@
 
 </div>
 
+<!-- ________________________________ -->
+
+<div v-if="currentUser" class="row justify-content-center mt-5 mb-2" >
+            <hr class="border-secondary opacity-25" />
+       <div  class="d-flex align-items-center mt-2 section-header px-3">
+              <div>
+                <h3 class="fw-bold m-0 text-white">Your friends love it:</h3>
+              </div>
+              
+        </div>
+
+          <div v-if="loadingRecs" class="text-center my-5">
+            <div class="spinner-border text-primary" role="status"></div>
+          </div>
+
+            
+
+      <div v-else-if="socialRecommendations.length > 0" class="simple-carousel-wrapper">
+              <swiper
+                :modules="modules"
+                :navigation="true"
+                :space-between="2"
+                :slides-per-view="1"
+                :breakpoints="{
+                  '576': { slidesPerView: 2, spaceBetween: 20 },
+                  '768': { slidesPerView: 3, spaceBetween: 20 },
+                  '1200': { slidesPerView: 5, spaceBetween: 20 }, 
+                }"
+                class="mySwiper simple-swiper"
+              >
+                <swiper-slide v-for="movie in socialRecommendations" :key="'rec-' + movie.id">
+                  <MovieCard 
+                    :id="movie.id"
+                    :title="movie.title" 
+                    :posterPath="movie.poster_path"
+                    
+                  />
+                </swiper-slide>
+              </swiper>
+            </div>
+
+             <div v-else class="text-center mt-4">
+                <div class="alert alert-dark border-0 shadow-lg d-inline-block px-5">
+                  <i class="bi bi-info-circle me-2"></i>Start following other users to discover their favorite movies!
+                </div>
+            </div>
+
+
+</div>
+<!-- ________________________________ -->
 
     <div class="row justify-content-center mt-5 mb-2" >
       <hr class="border-secondary opacity-25" />
@@ -173,6 +223,7 @@ export default {
     return {
       topMovies: [],
       recommendations: [],
+      socialRecommendations: [],
       loadingTop: true,
       loadingRecs: false,
       currentUser: null,
@@ -242,6 +293,20 @@ async fetchBestGenre() {
       }
     },
 
+    async fetchSocialRecommendations() {
+      if (!this.currentUser) return;
+      this.loadingRecs = true; 
+      try {
+        const response = await fetch(`http://localhost:3000/users/${this.currentUser.id}/social-recommendations`);
+        if (response.ok) {
+          this.socialRecommendations = await response.json();
+        }
+      } catch (error) {
+        console.error("Błąd pobierania rekomendacji od znajomych:", error);
+      } finally {
+        this.loadingRecs = false;
+      }
+    },
 
   },
   async mounted() {
@@ -249,6 +314,7 @@ async fetchBestGenre() {
     this.fetchTopMovies();
     this.fetchBestGenre(); 
     this.fetchRecommendations();
+    this.fetchSocialRecommendations();
   }
 }
 </script>

@@ -13,20 +13,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # 1. Montujemy skrypt SQL. Docker wykona go automatycznie TYLKO przy pierwszym uruchomieniu czystej bazy.
       - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
-      
-      # 2. Montujemy pliki CSV bezpośrednio do głównego katalogu kontenera (/).
-      # Jest to konieczne, bo w SQL masz: COPY ... FROM '/movies.csv'
-      - ./movies.csv:/movies.csv
-      - ./ratings.csv:/ratings.csv
-      - ./links.csv:/links.csv
-      - ./tags.csv:/tags.csv
-      
-      # 3. Trwałość danych. Dzięki temu dane przeżyją restart komputera.
-      # (Ale usunie je komenda 'docker-compose down -v')
+      # ZAMIAST 4 PLIKÓW CSV, DAJEMY TĘ JEDNĄ LINIJKĘ:
+      - ./:/data
       - postgres_data:/var/lib/postgresql/data
-
   
 # --- BAZA DANYCH (Neo4j) ---
   neo4j:
