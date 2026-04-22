@@ -1,4 +1,3 @@
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/postgres_db');
 
@@ -9,12 +8,14 @@ const Follower = sequelize.define('Follower', {
         primaryKey: true
     },
     followerId: { 
-        type: DataTypes.UUID, 
-        field: 'follower_id' 
+        type: DataTypes.UUID,
+        field: 'follower_id', // Twarde tłumaczenie na bazę!
+        allowNull: false      // Zakaz wstawiania NULLi!
     },
     followedId: { 
-        type: DataTypes.UUID, 
-        field: 'followed_id' 
+        type: DataTypes.UUID,
+        field: 'followed_id', // Twarde tłumaczenie na bazę!
+        allowNull: false
     }
 }, { 
     tableName: 'followers', 

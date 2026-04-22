@@ -10,6 +10,46 @@ async function loginUser(email, password) {
     return await User.authenticate(email, password);
 }
 
+// Wyszukiwanie użytkowników po nazwie
+async function searchUsers(searchQuery) {
+    return await User.findAll({
+        where: {
+            username: { [Op.iLike]: `%${searchQuery}%` }
+        },
+        attributes: ['id', 'username', 'name'],
+        limit: 10
+    });
+}
+
+// Pobieranie profilu konkretnego użytkownika
+async function getUserProfile(username) {
+    const user = await User.findOne({
+        where: { username: username }, 
+        attributes: ['id', 'username', 'name']
+    });
+
+    if (!user) return null;
+// W pliku postgresService.js zmień te dwie linijki:
+
+    const followersData = await sequelize.query(
+        `SELECT COUNT(*) AS count FROM followers WHERE followed_id = :userId`, 
+        { replacements: { userId: user.id }, type: QueryTypes.SELECT }
+    );
+    const followingData = await sequelize.query(
+        `SELECT COUNT(*) AS count FROM followers WHERE follower_id = :userId`, 
+        { replacements: { userId: user.id }, type: QueryTypes.SELECT }
+    );
+
+    const rawFollowers = followersData[0]?.count || 0;
+    const rawFollowing = followingData[0]?.count || 0;
+
+    return { 
+        ...user.toJSON(), 
+        followersCount: parseInt(rawFollowers, 10) || 0, 
+        followingCount: parseInt(rawFollowing, 10) || 0 
+    };
+}
+
 // --- ZADANIA CRON I STATYSTYKI ---
 async function getBestGenre() {
     return await Genre.getBestRated();
@@ -227,17 +267,13 @@ async function updateMovieDetails(id, details) {
     }
 }
 
-// 1. Obserwowanie użytkownika (Czysty Sequelize!)
 async function followUser(followerId, followedId) {
-    const existingEntry = await Follower.findOne({
-        where: { followerId, followedId }
-    });
-
+    const existingEntry = await Follower.findOne({ where: { followerId, followedId } });
     if (!existingEntry) {
         await Follower.create({ followerId, followedId });
         return { message: "Rozpoczęto obserwowanie!" };
     }
-    return { message: "Już obserwujesz tego użytkownika." };
+    return { message: "Już obserwujesz." };
 }
 
 // 2. Rekomendacje od obserwowanych
@@ -265,10 +301,40 @@ async function getSocialRecommendations(userId) {
     return recommendations;
 }
 
+// Sprawdzanie, czy użytkownik A obserwuje użytkownika B
+async function checkFollowStatus(followerId, followedId) {
+    const existing = await Follower.findOne({ where: { followerId, followedId } });
+    return { isFollowing: !!existing }; 
+}
+
+// Przełączanie statusu (Follow / Unfollow)
+async function toggleFollow(followerId, followedId) {
+    const existing = await sequelize.query(
+        `SELECT 1 FROM followers WHERE follower_id = :followerId AND followed_id = :followedId`,
+        { replacements: { followerId, followedId }, type: QueryTypes.SELECT }
+    );
+    
+    if (existing.length > 0) {
+        await sequelize.query(
+            `DELETE FROM followers WHERE follower_id = :followerId AND followed_id = :followedId`,
+            { replacements: { followerId, followedId } }
+        );
+        return { isFollowing: false };
+    } else {
+        await sequelize.query(
+            `INSERT INTO followers (follower_id, followed_id) VALUES (:followerId, :followedId)`,
+            { replacements: { followerId, followedId } }
+        );
+        return { isFollowing: true };
+    }
+}
+
+
+
 module.exports = {
     getTopMovies, getMovieById, getMovies, getRecommendations,
     registerUser, loginUser, getBestGenre, getWeeklyStats,
     rateMovie, getWatchedStatus, getUserWatched, removeWatched,
-    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch, updateMovieDetails, getAllMoviesWithLinks, getSocialRecommendations, followUser
-
+    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch, updateMovieDetails, 
+    getAllMoviesWithLinks, getSocialRecommendations, followUser, getUserProfile, searchUsers, checkFollowStatus, toggleFollow,
 };
