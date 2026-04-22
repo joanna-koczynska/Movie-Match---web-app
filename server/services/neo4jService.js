@@ -317,9 +317,137 @@ async function updateMovieDetails(id, details) {
     } finally { await session.close(); }
 }
 
+// =========================================================================
+// --- NOWE: FUNKCJE SPOŁECZNOŚCIOWE (WYSZUKIWANIE I FOLLOW DLA NEO4J) ---
+// =========================================================================
+
+// 1. Wyszukiwanie użytkowników w pasku nawigacji
+async function searchUsers(searchQuery) {
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (u:User)
+             WHERE toLower(u.username) CONTAINS toLower($query)
+             RETURN u.id AS id, u.username AS username, u.name AS name
+             LIMIT 10`,
+            { query: searchQuery }
+        );
+        return result.records.map(r => {
+            const rawId = r.get('id');
+            return {
+                // Bezpieczne konwertowanie identyfikatorów Neo4j
+                id: typeof rawId.toNumber === 'function' ? rawId.toNumber() : Number(rawId),
+                username: r.get('username'),
+                name: r.get('name') || null
+            };
+        });
+    } finally {
+        await session.close();
+    }
+}
+
+// 2. Pobieranie profilu (wraz ze zliczeniem followersów w locie)
+// 2. Pobieranie profilu (zaktualizowane dla nowszego Neo4j 5+)
+async function getUserProfile(username) {
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (u:User {username: $username})
+             RETURN u.id AS id, u.username AS username, u.name AS name,
+                    COUNT { (u)<-[:FOLLOWS]-() } AS followersCount,
+                    COUNT { (u)-[:FOLLOWS]->() } AS followingCount`,
+            { username: username }
+        );
+
+        if (result.records.length === 0) return null;
+
+        const record = result.records[0];
+        const rawId = record.get('id');
+        const rawFollowers = record.get('followersCount');
+        const rawFollowing = record.get('followingCount');
+
+        return {
+            id: typeof rawId.toNumber === 'function' ? rawId.toNumber() : Number(rawId),
+            username: record.get('username'),
+            name: record.get('name') || null,
+            // Upewniamy się, że to na pewno liczba
+            followersCount: typeof rawFollowers.toNumber === 'function' ? rawFollowers.toNumber() : Number(rawFollowers),
+            followingCount: typeof rawFollowing.toNumber === 'function' ? rawFollowing.toNumber() : Number(rawFollowing)
+        };
+    } finally {
+        await session.close();
+    }
+}
+
+
+async function checkFollowStatus(followerId, followedId) {
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (u1:User {id: toInteger($followerId)})-[r:FOLLOWS]->(u2:User {id: toInteger($followedId)}) 
+             RETURN r`,
+            { followerId: parseInt(followerId), followedId: parseInt(followedId) }
+        );
+        return { isFollowing: result.records.length > 0 };
+    } finally {
+        await session.close();
+    }
+}
+
+
+async function toggleFollow(followerId, followedId) {
+    const session = driver.session();
+    try {
+        const check = await session.run(
+            `MATCH (u1:User {id: toInteger($followerId)})-[r:FOLLOWS]->(u2:User {id: toInteger($followedId)}) RETURN r`,
+            { followerId: parseInt(followerId), followedId: parseInt(followedId) }
+        );
+
+        if (check.records.length > 0) {
+            // Jeśli relacja już jest -> Usuwamy ją
+            await session.run(
+                `MATCH (u1:User {id: toInteger($followerId)})-[r:FOLLOWS]->(u2:User {id: toInteger($followedId)}) DELETE r`,
+                { followerId: parseInt(followerId), followedId: parseInt(followedId) }
+            );
+            return { isFollowing: false };
+        } else {
+            // Jeśli nie ma relacji -> Tworzymy ją za pomocą MERGE
+            await session.run(
+                `MATCH (u1:User {id: toInteger($followerId)}), (u2:User {id: toInteger($followedId)}) MERGE (u1)-[:FOLLOWS]->(u2)`,
+                { followerId: parseInt(followerId), followedId: parseInt(followedId) }
+            );
+            return { isFollowing: true };
+        }
+    } finally {
+        await session.close();
+    }
+}
+
+
+async function getSocialRecommendations(userId) {
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (u:User {id: toInteger($userId)})-[:FOLLOWS]->(followed:User)
+             MATCH (followed)-[r:WATCHED]->(m:Movie)
+             WHERE r.rating >= 4 AND m.poster_path IS NOT NULL
+               AND NOT (u)-[:WATCHED]->(m)
+             RETURN m, COUNT(followed) AS popularity
+             ORDER BY popularity DESC, rand()
+             LIMIT 10`,
+            { userId: parseInt(userId) }
+        );
+
+        return result.records.map(record => record.get('m').properties);
+    } finally {
+        await session.close();
+    }
+}
+
 module.exports = {
     getTopMovies, getMovieById, getMovies, getRecommendations,
     registerUser, loginUser, getBestGenre, getWeeklyStats,
     rateMovie, getWatchedStatus, getUserWatched, removeWatched,
-    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch,updateMovieDetails, getAllMoviesWithLinks
+    toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch,updateMovieDetails, getAllMoviesWithLinks,
+    toggleFollow, searchUsers, getUserProfile, checkFollowStatus, getSocialRecommendations
 };

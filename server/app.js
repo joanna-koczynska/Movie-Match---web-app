@@ -1,6 +1,6 @@
 // === WYBÓR  BAZY DANYCH ===
-const ACTIVE_DB = 'postgres'; 
-//const ACTIVE_DB = 'neo4j'; 
+//const ACTIVE_DB = 'postgres'; 
+const ACTIVE_DB = 'neo4j'; 
 
 const express = require('express');
 const cors = require('cors');
@@ -120,7 +120,6 @@ app.get('/genres/best', async (req, res) => {
 app.post('/users/toggle-follow', async (req, res) => {
     try {
         const { followerId, followedId } = req.body;
-        console.log(`[DEBUG] Próba follow. Kto: ${followerId} | Kogo: ${followedId}`);
         const result = await db.toggleFollow(followerId, followedId);
         res.json(result);
     } catch (error) {
