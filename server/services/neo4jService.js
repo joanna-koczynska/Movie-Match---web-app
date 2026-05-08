@@ -39,19 +39,27 @@ async function getMovieById(id) {
 }
 
 // --- NOWE: LISTA FILMÓW Z PAGINACJĄ ---
+// --- NOWE: LISTA FILMÓW Z PAGINACJĄ I WYSZUKIWANIEM ROZMYTYM (FUZZY) ---
 async function getMovies(page = 1, genreName = null, search = null) {
     const session = driver.session();
     const limit = 60;
     const skip = (page - 1) * limit;
 
     try {
-        let matchClause = `MATCH (m:Movie) WHERE m.poster_path IS NOT NULL`;
+        let matchClause = "";
         let params = { skip: skip, limit: limit };
 
         if (search) {
-            // Wyszukiwanie ignorujące wielkość liter (iLike)
-            matchClause += ` AND toLower(m.title) CONTAINS toLower($search)`;
-            params.search = search;
+            // FUZZY SEARCH: Dodajemy znak '~' do każdego słowa. 
+            // Dzięki temu 'badman' zamieni się na 'badman~' i Neo4j dopasuje 'batman'
+            const fuzzySearch = search.trim().split(/\s+/).map(word => word + "~").join(" ");
+            
+            // Używamy naszego nowego indeksu pełnotekstowego!
+            matchClause = `CALL db.index.fulltext.queryNodes("movie_title_index", $search) YIELD node AS m WHERE m.poster_path IS NOT NULL`;
+            params.search = fuzzySearch;
+        } else {
+            // Jeśli nie szukamy, zwracamy po prostu wszystkie filmy
+            matchClause = `MATCH (m:Movie) WHERE m.poster_path IS NOT NULL`;
         }
 
         if (genreName) {
@@ -64,11 +72,13 @@ async function getMovies(page = 1, genreName = null, search = null) {
         const countResult = await session.run(`${matchClause} RETURN count(m) AS total`, params);
         const totalItems = countResult.records[0].get('total');
 
-        // 2. Pobieramy właściwą stronę wyników
-        const result = await session.run(
-            `${matchClause} RETURN m ORDER BY m.title ASC SKIP toInteger($skip) LIMIT toInteger($limit)`,
-            params
-        );
+        // 2. Pobieramy właściwą stronę wyników. 
+        // Jeśli jest wyszukiwanie -> sortujemy od najlepszego dopasowania. Jeśli nie -> alfabetycznie.
+        let returnClause = search 
+            ? `RETURN m SKIP toInteger($skip) LIMIT toInteger($limit)` 
+            : `RETURN m ORDER BY m.title ASC SKIP toInteger($skip) LIMIT toInteger($limit)`;
+
+        const result = await session.run(`${matchClause} ${returnClause}`, params);
 
         const movies = result.records.map(record => record.get('m').properties);
 

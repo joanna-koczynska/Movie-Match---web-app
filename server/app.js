@@ -1,6 +1,6 @@
 // === WYBÓR  BAZY DANYCH ===
-//const ACTIVE_DB = 'postgres'; 
-const ACTIVE_DB = 'neo4j'; 
+const ACTIVE_DB = 'postgres'; 
+//const ACTIVE_DB = 'neo4j'; 
 
 const express = require('express');
 const cors = require('cors');
