@@ -120,7 +120,6 @@ app.get('/genres/best', async (req, res) => {
 app.post('/users/toggle-follow', async (req, res) => {
     try {
         const { followerId, followedId } = req.body;
-        console.log(`[DEBUG] Próba follow. Kto: ${followerId} | Kogo: ${followedId}`);
         const result = await db.toggleFollow(followerId, followedId);
         res.json(result);
     } catch (error) {

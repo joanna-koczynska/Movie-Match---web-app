@@ -74,6 +74,7 @@ async function getMovieById(id) {
 }
 
 // --- NOWE: LISTA FILMÓW Z PAGINACJĄ ---
+// --- NOWE: LISTA FILMÓW Z PAGINACJĄ I FUZZY SEARCH (POSTGRES) ---
 async function getMovies(page = 1, genreName = null, search = null) {
     const limit = 60;
     const offset = (page - 1) * limit;
@@ -83,12 +84,26 @@ async function getMovies(page = 1, genreName = null, search = null) {
         include: [],
         limit: limit,
         offset: offset,
+        // Domyślne sortowanie alfabetyczne
         order: [['title', 'ASC']],
         distinct: true
     };
 
     if (search) {
-        queryOptions.where.title = { [Op.iLike]: `%${search}%` };
+        // Wyszukiwanie rozmyte (Fuzzy Search)
+        // Szukamy jako zwykła część słowa (ILIKE) LUB sprawdzamy podobieństwo na literówki
+        queryOptions.where[Op.or] = [
+            { title: { [Op.iLike]: `%${search}%` } },
+            sequelize.where(sequelize.fn('similarity', sequelize.col('title'), search), {
+                [Op.gt]: 0.2 // Złoty środek! 0.2 pozwala na sporo literówek, ale nie psuje wyników
+            })
+        ];
+
+        // Zmieniamy sortowanie, żeby najbardziej trafne tytuły były na samej górze!
+        queryOptions.order = [
+            [sequelize.fn('similarity', sequelize.col('title'), search), 'DESC'],
+            ['title', 'ASC']
+        ];
     }
 
     if (genreName) {
