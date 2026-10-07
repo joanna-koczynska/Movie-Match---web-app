@@ -1,21 +1,68 @@
-Movie Match is a web application designed for personal movie library management, rating films, and generating personalized recommendations. This project serves as the practical implementation for a Master's thesis titled: "A Comparative Performance Analysis of Relational and Graph Databases: A study of PostgreSQL and Neo4j".
+# 🎬 Movie Match
 
-Features
-- Browse Movie Database: Access detailed information about productions, including descriptions, genres, and release years.
-- Rating System: A star-based rating feature that directly influences the recommendation algorithm.
-- Watchlist: Personalized lists for users to save movies they intend to watch in the future.
-- Smart Recommendations: The system suggests films based on the user's past activity and ratings from similar profiles.
+A full-stack web application for managing a personal movie library, rating films and getting personalized recommendations.
 
-Tech Stack:
-- Frontend: Vue.js (Progressive Framework) + Bootstrap (UI components and styling).
-- Backend: Node.js (Runtime environment) + Express.js.
-- Database:
-  - PostgreSQL – the relational database handling core business logic and user data.
-  - Neo4j - graph database
-- Containerization: Docker Desktop – the entire database environment is fully containerized to ensure test reproducibility.
+Movie Match is the practical part of my Master's thesis:
+**"A Comparative Performance Analysis of Relational and Graph Databases: A Study of PostgreSQL and Neo4j"**.
+The same features are implemented on top of both databases, so their performance can be measured and compared under identical conditions.
 
-Data Source:
-The dataset used in this project, including movie information and user ratings, is sourced from the MovieLens website (provided by GroupLens Research).
+## ✨ Features
+
+- **Movie database** – browse detailed information about movies, including descriptions, genres and release years.
+- **Rating system** – rate movies on a star scale; ratings directly feed the recommendation algorithm.
+- **Watchlist** – save movies you want to watch later.
+- **Personalized recommendations** – suggestions based on your ratings and on the activity of users with similar taste.
+- **Social discovery** – follow other users and get recommendations based on what people you follow are watching.
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+|-------|--------------|
+| Frontend | Vue.js, Bootstrap |
+| Backend | Node.js, Express.js |
+| Databases | PostgreSQL (relational), Neo4j (graph) |
+| Infrastructure | Docker Desktop – fully containerized database environment for reproducible tests |
+
+## 📁 Project Structure
+
+```
+Movie-Match/
+├── frontend/   # Vue.js client application
+├── server/     # Node.js + Express API, database services
+└── DBdata/     # data used to populate the databases
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+### Installation
+
+1. Clone the repository:
+```bash
+   git clone https://github.com/joanna-koczynska/Movie-Match---web-app.git
+   cd Movie-Match---web-app
+```
+2. Start the PostgreSQL and Neo4j containers in Docker.
+3. Install dependencies and run the backend:
+```bash
+   cd server
+   npm install
+   npm start
+```
+4. In a new terminal, install dependencies and run the frontend:
+```bash
+   cd frontend
+   npm install
+   npm run dev
+```
+
+## 📊 Data Source
+
+Movie information and user ratings come from the [MovieLens](https://grouplens.org/datasets/movielens/) dataset provided by GroupLens Research.
 
 <img width="1897" height="707" alt="image" src="https://github.com/user-attachments/assets/3525a801-0a2b-4f50-ae2b-bae3afd057ce" />
 
