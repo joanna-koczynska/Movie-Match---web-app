@@ -9,12 +9,12 @@ const Follower = sequelize.define('Follower', {
     },
     followerId: { 
         type: DataTypes.UUID,
-        field: 'follower_id', // Twarde tłumaczenie na bazę!
-        allowNull: false      // Zakaz wstawiania NULLi!
+        field: 'follower_id', 
+        allowNull: false      
     },
     followedId: { 
         type: DataTypes.UUID,
-        field: 'followed_id', // Twarde tłumaczenie na bazę!
+        field: 'followed_id',
         allowNull: false
     }
 }, { 

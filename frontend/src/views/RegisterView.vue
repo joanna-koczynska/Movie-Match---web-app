@@ -14,7 +14,6 @@
               <div v-if="errorMessage" class="alert alert-danger">
                 {{ errorMessage }}
               </div>
-                      <!-- error sukces message catch-->
               <div v-if="sukcesMessage" class="alert alert-success" role="alert">
                 A simple success alert—check it out!
                 {{ sukcesMessage }}
@@ -105,14 +104,12 @@ export default {
         const data = await response.json();
 
         if (!response.ok) {
-            // Jeśli serwer zwrócił błąd (np. email zajęty)
             throw new Error(data.message || 'Błąd rejestracji');
         }
 
        alert("sukces")
         alert('Konto utworzone pomyślnie!');
         
-        // Przekierowanie
         this.$router.push('/home');
 
       } catch (error) {

@@ -104,7 +104,6 @@ export default {
     }
   },
   computed: {
-    // Dynamically change placeholder based on selected mode
     placeholderText() {
       return this.searchMode === 'movie' ? 'Search movies...' : 'Search users...';
     }
@@ -115,14 +114,13 @@ export default {
   methods: {
    handleSearch() {
       if (this.searchQuery.trim() !== '') {
-        // Route to different views based on active mode
         if (this.searchMode === 'movie') {
           this.$router.push({ path: '/movies', query: { search: this.searchQuery } });
         } else {
           this.$router.push({ path: '/users', query: { search: this.searchQuery } });
         }
         
-        this.searchQuery = ''; // Clear input after search
+        this.searchQuery = '';
       }
     },
 

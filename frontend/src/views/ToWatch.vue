@@ -67,7 +67,6 @@ export default {
       if (userStored) {
         this.currentUser = JSON.parse(userStored);
       } else {
-        // Jeśli niezalogowany, przekieruj do logowania
         this.$router.push('/login');
       }
     },
@@ -76,7 +75,6 @@ export default {
       if (!this.currentUser) return;
 
       try {
-        // Zmieniony endpoint na /towatch
         const response = await fetch(`http://localhost:3000/users/${this.currentUser.id}/towatch`);
         
         if (response.ok) {
@@ -100,7 +98,6 @@ export default {
         });
 
         if (response.ok) {
-          // Usuwamy film z lokalnej tablicy, żeby zniknął bez odświeżania strony
           this.toWatchList = this.toWatchList.filter(entry => entry.Movie.id !== movieId);
         } else {
           alert("Błąd podczas usuwania.");
@@ -121,6 +118,3 @@ export default {
 }
 </script>
 
-<style scoped>
-/* Style analogiczne do Watched */
-</style>

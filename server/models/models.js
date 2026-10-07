@@ -21,7 +21,6 @@ Movie.hasOne(Link, { foreignKey: 'movieId' });
 Link.belongsTo(Movie, { foreignKey: 'movieId' });
 
 // Relacje Movie - Genre (Many-to-Many)
-
 Movie.belongsToMany(Genre, { 
     through: 'movie_genres', 
     foreignKey: 'id_movie',  
