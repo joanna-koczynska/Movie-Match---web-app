@@ -64,6 +64,8 @@ Movie-Match/
 
 Movie information and user ratings come from the [MovieLens](https://grouplens.org/datasets/movielens/) dataset provided by GroupLens Research.
 
+## 📸 Screenshots
+
 <img width="1897" height="707" alt="image" src="https://github.com/user-attachments/assets/3525a801-0a2b-4f50-ae2b-bae3afd057ce" />
 
 <img width="1899" height="916" alt="image" src="https://github.com/user-attachments/assets/1267dbd8-0131-4556-b911-176c05072711" />
