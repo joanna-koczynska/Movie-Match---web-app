@@ -10,7 +10,7 @@
             <h2 class="card-title text-white fw-bold">
               {{ user.username }}
             </h2>
-            <p class="text-muted mb-4">{{ user.name || 'Brak imienia' }}</p>
+            <p class="text-muted mb-4">{{ user.name || 'user name ' }}</p>
             
             <div class="d-flex justify-content-center gap-5 mb-4">
               <div>
@@ -33,7 +33,7 @@
               </button>
             </div>
             <div v-else-if="!currentUser" class="text-muted small">
-              Zaloguj się, aby obserwować.
+              Log in to followe another users
             </div>
             
           </div>
@@ -60,17 +60,16 @@ export default {
   },
   computed: {
     isMyProfile() {
-      // Czy ten profil to my?
       if (!this.currentUser || !this.user.id) return false;
       return this.currentUser.id === this.user.id;
     }
   },
 mounted() {
-    // Odczyt z LocalStorage
+
     const userStored = localStorage.getItem('user');
     if (userStored) {
       const parsedData = JSON.parse(userStored);
-      // Sprawdzamy, czy dane z backendu były zawinięte w obiekt 'user'
+
       this.currentUser = parsedData.user ? parsedData.user : parsedData;
     }
     this.fetchUserData();
@@ -91,18 +90,17 @@ this.user = response.data;
 this.followersCount = Number(response.data.followersCount) || 0;
 this.followingCount = Number(response.data.followingCount) || 0;
 
-          // Jeśli jesteśmy zalogowani, sprawdźmy czy już go obserwujemy
+      
           if (this.currentUser && !this.isMyProfile) {
             const statusRes = await axios.get(`http://localhost:3000/users/follow-status?followerId=${this.currentUser.id}&followedId=${this.user.id}`);
             this.isFollowing = statusRes.data.isFollowing;
           }
        } else {
-          // Oglądamy swój własny profil (/profile)
-          if (this.currentUser && this.currentUser.username) { // Zabezpieczenie!
+          
+          if (this.currentUser && this.currentUser.username) { 
             const response = await axios.get(`http://localhost:3000/users/${this.currentUser.username}`);
             console.log("👉 DANE Z BACKENDU (Mój profil):", response.data);
             this.user = response.data;
-           // Upewniamy się, że jeśli z backendu przyjdzie 0, to Vue nie podmieni tego na nic innego
 this.followersCount = response.data.followersCount ?? 0;
 this.followingCount = response.data.followingCount ?? 0;
           } else {

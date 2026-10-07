@@ -55,15 +55,13 @@ export default {
       try {
         const response = await axios.get(`http://localhost:3000/users/search?q=${this.searchQuery}`);
         
-        // 1. Pobieramy Twoje dane z przeglądarki
+       
         const userStored = localStorage.getItem('user');
         
         if (userStored) {
           const currentUser = JSON.parse(userStored);
-          // 2. Filtrujemy wyniki: zostawiamy tylko tych, których ID jest INNE niż Twoje
           this.users = response.data.filter(user => user.id !== currentUser.id);
         } else {
-          // Jeśli ktoś wyszukuje bez logowania, pokazujemy wszystkich
           this.users = response.data;
         }
         
@@ -75,7 +73,7 @@ export default {
     }
   },
   watch: {
-    // Odśwież wyniki, jeśli użytkownik wpisze nową frazę będąc już na tej stronie
+   
     '$route.query.search'() {
       this.fetchUsers();
     }

@@ -1,7 +1,6 @@
 const { Movie, Genre, Tag, Watched, User, ToWatch, Link, Follower,  sequelize } = require('../models/models');
 const { QueryTypes, Op } = require('sequelize'); 
 
-// --- UŻYTKOWNICY (Logowanie i Rejestracja) ---
 async function registerUser(username, email, password) {
     return await User.signup(username, email, password);
 }
@@ -10,7 +9,6 @@ async function loginUser(email, password) {
     return await User.authenticate(email, password);
 }
 
-// Wyszukiwanie użytkowników po nazwie
 async function searchUsers(searchQuery) {
     return await User.findAll({
         where: {
@@ -21,7 +19,6 @@ async function searchUsers(searchQuery) {
     });
 }
 
-// Pobieranie profilu konkretnego użytkownika
 async function getUserProfile(username) {
     const user = await User.findOne({
         where: { username: username }, 
@@ -29,7 +26,6 @@ async function getUserProfile(username) {
     });
 
     if (!user) return null;
-// W pliku postgresService.js zmień te dwie linijki:
 
     const followersData = await sequelize.query(
         `SELECT COUNT(*) AS count FROM followers WHERE followed_id = :userId`, 
@@ -50,7 +46,6 @@ async function getUserProfile(username) {
     };
 }
 
-// --- ZADANIA CRON I STATYSTYKI ---
 async function getBestGenre() {
     return await Genre.getBestRated();
 }
@@ -68,13 +63,12 @@ async function getMovieById(id) {
         where: { id: id },
         include: [
             { model: Genre, through: { attributes: [] } },
-            // Zauważ: tu usunąłem błąd z { model: Link }, upewnij się że masz zaimportowany Link jeśli chcesz go użyć!
+
         ]
     });
 }
 
-// --- NOWE: LISTA FILMÓW Z PAGINACJĄ ---
-// --- NOWE: LISTA FILMÓW Z PAGINACJĄ I FUZZY SEARCH (POSTGRES) ---
+
 async function getMovies(page = 1, genreName = null, search = null) {
     const limit = 60;
     const offset = (page - 1) * limit;
@@ -84,22 +78,18 @@ async function getMovies(page = 1, genreName = null, search = null) {
         include: [],
         limit: limit,
         offset: offset,
-        // Domyślne sortowanie alfabetyczne
         order: [['title', 'ASC']],
         distinct: true
     };
 
     if (search) {
-        // Wyszukiwanie rozmyte (Fuzzy Search)
-        // Szukamy jako zwykła część słowa (ILIKE) LUB sprawdzamy podobieństwo na literówki
         queryOptions.where[Op.or] = [
             { title: { [Op.iLike]: `%${search}%` } },
             sequelize.where(sequelize.fn('similarity', sequelize.col('title'), search), {
-                [Op.gt]: 0.2 // Złoty środek! 0.2 pozwala na sporo literówek, ale nie psuje wyników
+                [Op.gt]: 0.2
             })
         ];
 
-        // Zmieniamy sortowanie, żeby najbardziej trafne tytuły były na samej górze!
         queryOptions.order = [
             [sequelize.fn('similarity', sequelize.col('title'), search), 'DESC'],
             ['title', 'ASC']
@@ -126,7 +116,7 @@ async function getMovies(page = 1, genreName = null, search = null) {
     };
 }
 
-// --- NOWE: REKOMENDACJE (Stary kod z app.js) ---
+
 async function getRecommendations(userId) {
     const likedMovies = await Watched.findAll({
         where: { userId: userId, rating: 5 },
@@ -147,12 +137,13 @@ async function getRecommendations(userId) {
     const allWatched = await Watched.findAll({ where: { userId }, attributes: ['movieId'] });
     const watchedIds = allWatched.map(w => w.movieId);
 
-    let candidatesByGenre = [];
+        let candidatesByGenre = [];
     if (favGenreIds.size > 0) {
         candidatesByGenre = await Movie.findAll({
             where: { id: { [Op.notIn]: watchedIds }, poster_path: { [Op.ne]: null } },
             include: [{ model: Genre, where: { id: { [Op.in]: Array.from(favGenreIds) } }, through: { attributes: [] } }],
-            limit: 30 
+            order: sequelize.random(),
+            limit: 30
         });
     }
 
@@ -161,6 +152,7 @@ async function getRecommendations(userId) {
         candidatesByTag = await Movie.findAll({
             where: { id: { [Op.notIn]: watchedIds }, poster_path: { [Op.ne]: null } },
             include: [{ model: Tag, where: { tag: { [Op.in]: Array.from(favTags) } } }],
+            order: sequelize.random(),
             limit: 30
         });
     }
@@ -173,19 +165,31 @@ async function getRecommendations(userId) {
 }
 
 
+async function getTopRatedMovies() {
+    const query = `
+        SELECT m.id, m.title, m.poster_path, AVG(w.rating) AS srednia
+        FROM movie m
+        JOIN watched w ON m.id = w.id_movie
+        WHERE m.poster_path IS NOT NULL
+        GROUP BY m.id, m.title, m.poster_path
+        HAVING COUNT(w.rating) >= 50
+        ORDER BY srednia DESC, m.id
+        LIMIT 10;
+    `;
+    return await sequelize.query(query, { type: QueryTypes.SELECT });
+}
+
 async function getWeeklyStats() {
-    let to_10_list = [];
     let genre_otw = { name: "", movies: [] };
 
-    let queryTop10 = `
-        SELECT m.id, m.title, m.poster_path, AVG(r.rating) as srednia
-        FROM movie m JOIN rating r ON m.id = r.id_movie
-        WHERE m.poster_path IS NOT NULL GROUP BY m.id, m.title, m.poster_path ORDER BY srednia DESC LIMIT 10;
-    `;
-    to_10_list = await sequelize.query(queryTop10, { type: QueryTypes.SELECT });
+    let to_10_list = await getTopRatedMovies();
 
     if (to_10_list.length === 0) {
-        to_10_list = await Movie.findAll({ where: { poster_path: { [Op.ne]: null } }, order: sequelize.random(), limit: 10 });
+        to_10_list = await Movie.findAll({
+            where: { poster_path: { [Op.ne]: null } },
+            order: sequelize.random(),
+            limit: 10
+        });
     }
 
     const bestGenre = await Genre.getBestRated();
@@ -194,13 +198,14 @@ async function getWeeklyStats() {
         genre_otw.movies = await Movie.findAll({
             include: [{ model: Genre, where: { name: bestGenre.name }, attributes: [], through: { attributes: [] } }],
             where: { poster_path: { [Op.ne]: null } },
-            order: sequelize.random(), limit: 10
+            order: sequelize.random(),
+            limit: 10
         });
     }
     return { top10: to_10_list, genreTop: genre_otw };
 }
 
-// --- SYSTEM OCEN (Watched) ---
+
 async function rateMovie(userId, movieId, rating) {
     return await Watched.rateMovie(userId, movieId, rating);
 }
@@ -222,7 +227,7 @@ async function removeWatched(userId, movieId) {
     return await Watched.destroy({ where: { userId, movieId } });
 }
 
-// --- LISTA DO OBEJRZENIA (ToWatch) ---
+
 async function toggleToWatch(userId, movieId) {
     return await ToWatch.toggleMovie(userId, movieId);
 }
@@ -250,10 +255,7 @@ async function getAllMoviesWithLinks() {
     });
 
     return movies.map(m => {
-        // Zmieniamy obiekt Sequelize na czysty, prosty JSON
         const plain = m.get({ plain: true });
-        
-        // Zabezpieczenie: bierzemy Link (z dużej) lub link (z małej litery)
         const linkData = plain.Link || plain.link;
         
         return {
@@ -291,13 +293,13 @@ async function followUser(followerId, followedId) {
     return { message: "Już obserwujesz." };
 }
 
-// 2. Rekomendacje od obserwowanych
+
 async function getSocialRecommendations(userId) {
-    // Używamy tu sequelize.query, ponieważ zapytanie przez ORM byłoby mało wydajne
     const query = `
-        SELECT DISTINCT m.id, m.title, m.poster_path
+        SELECT m.id, m.title, m.poster_path,
+               COUNT(DISTINCT f.followed_id) AS popularity
         FROM movie m
-        JOIN watched w ON m.id = w.id_movie
+        JOIN watched w   ON m.id = w.id_movie
         JOIN followers f ON w.id_user = f.followed_id
         WHERE f.follower_id = :userId
           AND w.rating >= 4
@@ -305,24 +307,24 @@ async function getSocialRecommendations(userId) {
           AND m.id NOT IN (
               SELECT id_movie FROM watched WHERE id_user = :userId
           )
+        GROUP BY m.id, m.title, m.poster_path
+        ORDER BY popularity DESC, random()
         LIMIT 10;
     `;
-    
-    const recommendations = await sequelize.query(query, {
+
+    return await sequelize.query(query, {
         replacements: { userId },
         type: QueryTypes.SELECT
     });
-
-    return recommendations;
 }
 
-// Sprawdzanie, czy użytkownik A obserwuje użytkownika B
+
 async function checkFollowStatus(followerId, followedId) {
     const existing = await Follower.findOne({ where: { followerId, followedId } });
     return { isFollowing: !!existing }; 
 }
 
-// Przełączanie statusu (Follow / Unfollow)
+
 async function toggleFollow(followerId, followedId) {
     const existing = await sequelize.query(
         `SELECT 1 FROM followers WHERE follower_id = :followerId AND followed_id = :followedId`,
@@ -351,5 +353,12 @@ module.exports = {
     registerUser, loginUser, getBestGenre, getWeeklyStats,
     rateMovie, getWatchedStatus, getUserWatched, removeWatched,
     toggleToWatch, getToWatchStatus, getUserToWatch, removeToWatch, updateMovieDetails, 
-    getAllMoviesWithLinks, getSocialRecommendations, followUser, getUserProfile, searchUsers, checkFollowStatus, toggleFollow,
+    getAllMoviesWithLinks, getSocialRecommendations, followUser, getUserProfile, searchUsers, checkFollowStatus, toggleFollow, getTopRatedMovies
 };
+
+
+
+
+
+
+

@@ -9,7 +9,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ŁADOWANIE ODPOWIEDNIEJ BAZY 
 let db;
 if (ACTIVE_DB === 'postgres') {
     db = require('./services/postgresService');
@@ -25,7 +24,7 @@ let genre_otw = { name: "", movies: [] };
 
 
 // ==========================================================
-// 2. FUNKCJA AKTUALIZUJĄCA (Wykonuje się tylko w poniedziałki)
+// FUNKCJA AKTUALIZUJĄCA
 // ==========================================================
 
 async function wykonajObliczenia() {
@@ -41,10 +40,6 @@ async function wykonajObliczenia() {
 cron.schedule('0 0 * * 1', wykonajObliczenia);
 setTimeout(wykonajObliczenia, 2000);
 
-// ==========================================================
-// 4. ENDPOINTY (Tylko wyświetlają gotowe tablice)
-// ==========================================================
-// Zwraca Top 10 z pamięci
 app.get('/api/weekly-top', (req, res) => {
     res.json(to_10_list);
 });
@@ -72,7 +67,7 @@ app.post('/login', async (req, res) => {
     } catch (error) { res.status(401).json({ message: error.message }); }
 });
 
-// Endpoint: Szukaj użytkownika
+//Szukaj użytkownika
 app.get('/users/search', async (req, res) => {
     try {
         const query = req.query.q;
@@ -83,7 +78,7 @@ app.get('/users/search', async (req, res) => {
     }
 });
 
-// Endpoint: Sprawdź czy obserwuję
+// Sprawdź czy obserwuję
 app.get('/users/follow-status', async (req, res) => {
     try {
         const { followerId, followedId } = req.query;
@@ -94,20 +89,19 @@ app.get('/users/follow-status', async (req, res) => {
     }
 });
 
-// Endpoint: Profil użytkownika po nazwie
+//Profil użytkownika po nazwie
 app.get('/users/:username', async (req, res) => {
     try {
         const user = await db.getUserProfile(req.params.username);
         if (!user) return res.status(404).json({ error: "Nie znaleziono użytkownika" });
         res.json(user);
     } catch (error) {
-        // DODAJEMY CONSOLE.ERROR, żeby wiedzieć co się sypie!
         console.error("❌ BŁĄD POBIERANIA PROFILU (backend):", error);
         res.status(500).json({ error: "Błąd pobierania profilu" });
     }
 });
 
-// ENDPOINT: Najlepszy gatunek
+// Najlepszy gatunek
 app.get('/genres/best', async (req, res) => {
     try { res.json(await db.getBestGenre() || { name: 'N/A', avg_rating: 0 }); } 
     catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
@@ -115,7 +109,7 @@ app.get('/genres/best', async (req, res) => {
 
 
 
-// Endpoint: Przełącz Follow/Unfollow
+//Przełącz Follow/Unfollow
 
 app.post('/users/toggle-follow', async (req, res) => {
     try {
@@ -123,11 +117,11 @@ app.post('/users/toggle-follow', async (req, res) => {
         const result = await db.toggleFollow(followerId, followedId);
         res.json(result);
     } catch (error) {
-        console.error("❌ BŁĄD PRZY FOLLOW:", error); // Teraz backend nam wszystko wyśpiewa!
+        console.error(" BŁĄD PRZY FOLLOW:", error); 
         res.status(500).json({ error: "Błąd zmiany statusu obserwowania" });
     }
 });
-// --- ENDPOINT: TOP MOVIES ---
+//TOP MOVIES
 app.get('/movies/top', async (req, res) => {
     try {
         const movies = await db.getTopMovies();
@@ -138,7 +132,7 @@ app.get('/movies/top', async (req, res) => {
     }
 });
 
-// --- ENDPOINT: POJEDYNCZY FILM ---
+
 app.get('/movies/:id', async (req, res) => {
     try {
         const movieId = req.params.id;
@@ -155,14 +149,14 @@ app.get('/movies/:id', async (req, res) => {
 });
 
 
-// --- ENDPOINT: WSZYSTKIE FILMY (Z PAGINACJĄ I FILTROWANIEM) ---
+//WSZYSTKIE FILMY (Z PAGINACJĄ I FILTROWANIEM)
 app.get('/movies', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const genreName = req.query.genre;
         const search = req.query.search; 
 
-        // App.js znów nie wie skąd są dane. Po prostu prosi o nie bazę!
+        
         const result = await db.getMovies(page, genreName, search);
         res.json(result);
 
@@ -178,7 +172,7 @@ app.post('/rate', async (req, res) => {
     catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// --- ENDPOINT: POBIERZ STATUS I OCENĘ (GET) ---
+// POBIERZ STATUS I OCENĘ
 
 app.get('/watched/:userId/:movieId', async (req, res) => {
     try { res.json(await db.getWatchedStatus(req.params.userId, req.params.movieId)); } 
@@ -186,19 +180,17 @@ app.get('/watched/:userId/:movieId', async (req, res) => {
 });
 
 
-// --- NOWY ENDPOINT: LISTA OBEJRZANYCH FILMÓW UŻYTKOWNIKA ---
+//LISTA OBEJRZANYCH FILMÓW UŻYTKOWNIKA
 app.get('/users/:userId/watched', async (req, res) => {
     try { res.json(await db.getUserWatched(req.params.userId)); } 
     catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
 
-// --- ENDPOINT: REKOMENDACJE  ---
-// --- ENDPOINT 1: STANDARDOWE REKOMENDACJE (Gatunki i Tagi - Twoja oryginalna funkcja) ---
+//REKOMENDACJE
 app.get('/users/:userId/recommendations', async (req, res) => {
     try {
         const userId = req.params.userId;
-        // Wywołujemy starą, dobrą funkcję opartą na ocenach (5 gwiazdek)
         const recommendations = await db.getRecommendations(userId);
         res.json(recommendations);
     } catch (error) {
@@ -207,11 +199,10 @@ app.get('/users/:userId/recommendations', async (req, res) => {
     }
 });
 
-// --- ENDPOINT 2: SOCIAL REKOMENDACJE (Polecane od obserwowanych użytkowników) ---
+// SOCIAL REKOMENDACJE (Polecane od obserwowanych użytkowników)
 app.get('/users/:userId/social-recommendations', async (req, res) => {
     try {
         const userId = req.params.userId;
-        // Wywołujemy nową funkcję społecznościową
         const socialRecommendations = await db.getSocialRecommendations(userId);
         res.json(socialRecommendations);
     } catch (error) {
@@ -220,19 +211,19 @@ app.get('/users/:userId/social-recommendations', async (req, res) => {
     }
 });
 
-// --- ENDPOINT: TOGGLE WATCH LIST (Dodaj/Usuń) ---
+//TOGGLE WATCH LIST (Dodaj/Usuń)
 app.post('/towatch', async (req, res) => {
     try { res.json(await db.toggleToWatch(req.body.userId, req.body.movieId)); } 
     catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// --- NOWY ENDPOINT: SPRAWDŹ CZY FILM JEST NA LIŚCIE ---
+//SPRAWDŹ CZY FILM JEST NA LIŚCIE
 app.get('/towatch/:userId/:movieId', async (req, res) => {
     try { res.json(await db.getToWatchStatus(req.params.userId, req.params.movieId)); } 
     catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// --- ENDPOINT: POBIERZ LISTĘ TO WATCH ---
+// POBIERZ LISTĘ TO WATCH
 app.get('/users/:userId/towatch', async (req, res) => {
     try { res.json(await db.getUserToWatch(req.params.userId)); } 
     catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
@@ -240,7 +231,7 @@ app.get('/users/:userId/towatch', async (req, res) => {
 
 
 
-// --- ENDPOINT: USUŃ Z TO WATCH (DELETE) ---
+//USUŃ Z TO WATCH
 app.delete('/towatch/:userId/:movieId', async (req, res) => {
     try { 
         await db.removeToWatch(req.params.userId, req.params.movieId);
@@ -248,7 +239,7 @@ app.delete('/towatch/:userId/:movieId', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// --- ENDPOINT: USUŃ Z WATCHED (DELETE) ---
+//USUŃ Z WATCHED (DELETE)
 app.delete('/watched/:userId/:movieId', async (req, res) => {
     try { 
         await db.removeWatched(req.params.userId, req.params.movieId);
@@ -256,21 +247,21 @@ app.delete('/watched/:userId/:movieId', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// --- START SERWERA ---
+// START SERWERA
 async function startServer() {
     try {
         if (ACTIVE_DB === 'postgres') {
             const { sequelize } = require('./models/models');
             await sequelize.authenticate();
-            console.log('🐘 Baza danych (PostgreSQL) podłączona.');
+            console.log('Baza danych (PostgreSQL) podłączona.');
         } else if (ACTIVE_DB === 'neo4j') {
             const driver = require('./config/neo4j_db');
             await driver.getServerInfo();
-            console.log('🕸️ Baza danych (Neo4j) podłączona.');
+            console.log('Baza danych (Neo4j) podłączona.');
         }
 
         app.listen(3000, () => {
-            console.log(`🚀 Serwer działa na http://localhost:3000 (Aktywna baza: ${ACTIVE_DB})`);
+            console.log(`Serwer działa na http://localhost:3000 (Aktywna baza: ${ACTIVE_DB})`);
         });
 
     } catch (error) {

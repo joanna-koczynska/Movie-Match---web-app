@@ -57,12 +57,11 @@
 </template>
 
 <script>
-// 1. Importujemy komponent
 import MovieCard from '../components/MovieCard.vue';
 
 export default {
   name: 'Watched',
-  components: { MovieCard }, // 2. Rejestrujemy go
+  components: { MovieCard }, 
   data() {
     return {
       watchedList: [],
@@ -106,7 +105,7 @@ async removeFromWatched(movieId) {
         });
 
         if (response.ok) {
-          // Aktualizujemy listę lokalnie
+          
           this.watchedList = this.watchedList.filter(entry => entry.Movie.id !== movieId);
         } else {
           alert("Błąd podczas usuwania.");
@@ -124,7 +123,3 @@ async removeFromWatched(movieId) {
   }
 }
 </script>
-
-<style scoped>
-/* MovieCard ma swoje style, tu ewentualnie tylko dopieszczamy grid */
-</style>

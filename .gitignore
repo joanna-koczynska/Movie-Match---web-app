@@ -3,3 +3,10 @@ node_modules/
 dist/
 build/
 .DS_Store
+
+# Pomiary i wyniki do pracy magisterskiej
+server/wyniki/
+server/pomiary.js
+server/diagnostyka-s5.js
+server/weryfikacja-s5.js
+server/weryfikacja.log
